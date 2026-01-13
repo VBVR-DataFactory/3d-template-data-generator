@@ -1,5 +1,14 @@
-from .generator import TaskGenerator
-from .config import TaskConfig
-from .prompts import VIEW_NAME_MAP, get_prompt
+"""
+Your custom task implementation.
 
-__all__ = ["TaskGenerator", "TaskConfig", "get_prompt", "VIEW_NAME_MAP"]
+Files to customize:
+    - config.py   : Task-specific configuration (TaskConfig)
+    - generator.py: Task generation logic (TaskGenerator)
+    - prompts.py  : Task prompts/instructions (get_prompt)
+"""
+
+from .config import TaskConfig
+from .generator import TaskGenerator
+from .prompts import get_prompt
+
+__all__ = ["TaskConfig", "TaskGenerator", "get_prompt"]
