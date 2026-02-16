@@ -9,6 +9,7 @@ Author: VBVR-DataFactory Team
 
 import hashlib
 import json
+import re
 import subprocess
 from datetime import datetime
 from functools import lru_cache
@@ -44,15 +45,30 @@ def _get_git_info() -> Dict[str, Any]:
 
     commit = _run(["git", "rev-parse", "HEAD"])
     branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-    remote = _run(["git", "remote", "get-url", "origin"])
+    raw_remote = _run(["git", "remote", "get-url", "origin"])
+    repo = _sanitize_remote(raw_remote)
     is_dirty = _run(["git", "status", "--porcelain"]) != ""
 
     return {
         "commit": commit,
         "branch": branch,
-        "remote": remote,
+        "repo": repo,
         "is_dirty": is_dirty,
     }
+
+
+def _sanitize_remote(url: str) -> str:
+    """
+    Extract owner/repo from a git remote URL.
+    Strips credentials, protocol, hostname, and .git suffix.
+    Returns empty string if parsing fails.
+    """
+    if not url:
+        return ""
+    m = re.search(r'[/:]([^/:]+/[^/:]+?)(?:\.git)?$', url)
+    if m:
+        return m.group(1)
+    return ""
 
 
 def build_metadata(
@@ -60,7 +76,6 @@ def build_metadata(
     generator_name: str,
     parameters: Dict[str, Any],
     seed: Optional[int] = None,
-    generator_version: str = "1.0"
 ) -> Dict[str, Any]:
     """
     Build standardized metadata for a task.
@@ -70,7 +85,6 @@ def build_metadata(
         generator_name: Name of the generator (domain)
         parameters: Task parameters dict (from _generate_task_data())
         seed: Random seed used for generation (does not affect param_hash)
-        generator_version: Version of the generator
     
     Returns:
         Standardized metadata dict with all required fields
@@ -86,7 +100,6 @@ def build_metadata(
         "param_hash": param_hash,
         "generation": {
             "seed": seed,
-            "generator_version": generator_version,
             "git": _get_git_info(),
         }
     }
@@ -184,9 +197,8 @@ def verify_metadata(metadata: Dict[str, Any]) -> bool:
         return False
     
     git_info = metadata.get('generation', {}).get('git', {})
-    for git_field in ('commit', 'branch', 'remote', 'is_dirty'):
-        if git_field not in git_info:
-            return False
+    if 'commit' not in git_info:
+        return False
     
     return True
 
@@ -203,7 +215,7 @@ if __name__ == "__main__":
             "position": (100, 200),
             "seed": 42
         },
-        seed=42
+        seed=42,
     )
     
     print("Example Metadata:")

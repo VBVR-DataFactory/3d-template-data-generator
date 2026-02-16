@@ -93,5 +93,4 @@ class BaseGenerator(ABC):
             generator_name=self.config.domain,
             parameters=task_data,
             seed=self.config.random_seed,
-            generator_version="1.0"
         )
