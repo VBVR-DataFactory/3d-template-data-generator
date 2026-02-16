@@ -59,7 +59,7 @@ def _get_git_info() -> Dict[str, Any]:
 
 def _sanitize_remote(url: str) -> str:
     """
-    Extract owner/repo from a git remote URL.
+    Extract owner/repo from a git remote URL and return a full GitHub link.
     Strips credentials, protocol, hostname, and .git suffix.
     Returns empty string if parsing fails.
     """
@@ -67,7 +67,7 @@ def _sanitize_remote(url: str) -> str:
         return ""
     m = re.search(r'[/:]([^/:]+/[^/:]+?)(?:\.git)?$', url)
     if m:
-        return m.group(1)
+        return f"https://github.com/{m.group(1)}"
     return ""
 
 
