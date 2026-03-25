@@ -1,21 +1,17 @@
 """
-Core utilities for template-data-generator.
+Core framework for VBVR-3D Blender generators.
 
-DO NOT MODIFY - This is framework code.
-Customize files in src/ for your task.
+DO NOT MODIFY — this is shared framework code.
+Customise files in src/ to define your task.
 """
 
-from .base_generator import BaseGenerator, GenerationConfig
-from .schemas import TaskPair
-from .image_utils import ImageRenderer
+from .base_blender_generator import BaseBlenderGenerator, GenerationConfig
+from .schemas      import TaskPair
 from .output_writer import OutputWriter
-from .video_utils import VideoGenerator
 
 __all__ = [
-    "BaseGenerator",
+    "BaseBlenderGenerator",
     "GenerationConfig",
     "TaskPair",
-    "ImageRenderer",
     "OutputWriter",
-    "VideoGenerator",
 ]

@@ -1,139 +1,176 @@
-# Template Data Generator 🎲
+# 3d-template-data-generator
 
-A minimal template for creating synthetic reasoning task generators. Fork this and customize it for your own task (maze, sudoku, rotation, etc.).
+A **Blender-powered** synthetic data generator template for 3D video reasoning tasks.
+Built for [VBVR (Very Big Video Reasoning)](https://github.com/Video-Reason).
 
----
-
-## 🚀 Quick Start
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/your-task-generator.git
-cd your-task-generator
-
-# 2. Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 3. Install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
-pip install -e .
-
-# 4. Generate tasks
-python examples/generate.py --num-samples 50
-```
+Every generator produces deterministic, parametrically varied training samples
+for I2V (Image-to-Video) foundation models.
 
 ---
 
-## 📁 Structure
-
-```
-template-data-generator/
-├── core/                    # ✅ KEEP: Standard utilities
-│   ├── base_generator.py   # Abstract base class
-│   ├── schemas.py          # Pydantic models
-│   ├── image_utils.py      # Image helpers
-│   ├── video_utils.py      # Video generation
-│   └── output_writer.py    # File output
-├── src/                     # ⚠️ CUSTOMIZE: Your task logic
-│   ├── generator.py        # Your task generator
-│   ├── prompts.py          # Your prompt templates
-│   └── config.py           # Your configuration
-├── examples/
-│   └── generate.py         # Entry point
-└── data/questions/         # Generated output
-```
-
----
-
-## 📦 Output Format
-
-Every generator produces:
+## Output Format
 
 ```
 data/questions/{domain}_task/{task_id}/
-├── first_frame.png          # Initial state (REQUIRED)
-├── final_frame.png          # Goal state (or goal.txt)
-├── prompt.txt               # Instructions (REQUIRED)
-└── ground_truth.mp4         # Solution video (OPTIONAL)
+├── first_frame.png        # Initial state — given to the video model as input
+├── final_frame.png        # Optional goal/after-state PNG
+├── ground_truth.mp4       # Physics-rendered collision video — the correct answer
+├── prompt.txt             # Natural-language task question
+└── metadata.json          # All randomised parameters for this sample
 ```
 
 ---
 
-## 🎨 Customization (3 Files to Modify)
+## Quick Start
 
-### 1. Update `src/generator.py`
+```bash
+# 1) Install dependencies into Blender's embedded Python
+BLENDER_PY="/Applications/Blender.app/Contents/Resources/5.1/python/bin/python3.13"
+"$BLENDER_PY" -m pip install -r requirements.txt
 
-Replace the example chess generator with your task:
-
-```python
-from core import BaseGenerator, TaskPair, ImageRenderer
-
-class MazeGenerator(BaseGenerator):
-    def __init__(self, config):
-        super().__init__(config)
-        self.renderer = ImageRenderer(config.image_size)
-    
-    def generate_task_pair(self, task_id: str) -> TaskPair:
-        # 1. Generate your problem
-        maze = self.create_maze()
-        
-        # 2. Solve it
-        solution = self.solve_maze(maze)
-        
-        # 3. Render images
-        first_image = self.render_maze(maze)
-        final_image = self.render_maze_with_solution(maze, solution)
-        
-        # 4. Create TaskPair
-        return TaskPair(
-            task_id=task_id,
-            domain=self.config.domain,
-            prompt=self.select_prompt(),
-            first_image=first_image,
-            final_image=final_image,
-            ground_truth_video=None  # Optional
-        )
+# 2) Generate 10 samples (headless, no UI)
+/Applications/Blender.app/Contents/MacOS/Blender -b \
+    -P examples/generate_blender.py -- --num-samples 10
 ```
 
-### 2. Update `src/prompts.py`
+---
 
-Replace chess prompts with yours:
+## Prerequisites
+- `ffmpeg` must be installed and available on `PATH` (used to assemble `ground_truth.mp4`).
+- The project relies on Blender's Python runtime (`bpy`), so all Python deps must be installed into Blender's embedded Python.
+- On macOS headless runs, the core generator forces Cycles to `CPU` for stability.
 
-```python
-PROMPTS = {
-    "default": [
-        "Animate a path from start to goal through the maze.",
-        "Show the solution route navigating through corridors.",
-    ]
-}
+---
 
-def get_prompt(task_type: str = "default") -> str:
-    prompts = PROMPTS.get(task_type, PROMPTS["default"])
-    return random.choice(prompts)
+## Repository Structure
+
+```
+3d-template-data-generator/
+│
+├── core/                          # ✅ Framework — DO NOT MODIFY
+│   ├── base_blender_generator.py  # BaseBlenderGenerator + render helpers
+│   ├── schemas.py                 # TaskPair dataclass
+│   └── output_writer.py           # Saves output to standardised folders
+│
+├── src/                           # ✏️  YOUR TASK — customise these 3 files
+│   ├── generator.py               # Implement generate_task_pair()
+│   ├── config.py                  # Task hyperparameters (image size, fps, …)
+│   └── __init__.py
+│
+├── examples/
+│   └── generate_blender.py        # Entry point — run this with Blender
+│
+└── data/questions/                # Generated output appears here
 ```
 
-### 3. Update `src/config.py`
+---
 
-**All hyperparameters go here** - both general and task-specific:
+## How to Write a New 3D Task Generator
+
+You only need to touch **3 files** in `src/`:
+
+### 1. `src/config.py` — Define your hyperparameters
 
 ```python
-from core import GenerationConfig
+from core.base_blender_generator import GenerationConfig
 from pydantic import Field
 
 class TaskConfig(GenerationConfig):
-    """Your task-specific configuration."""
-    # Inherits: num_samples, domain, seed, output_dir, image_size
-    
-    # Override defaults
-    domain: str = Field(default="maze")
-    image_size: tuple[int, int] = Field(default=(512, 512))
-    
-    # Task-specific hyperparameters
-    grid_size: int = Field(default=10, description="Maze grid size")
-    wall_thickness: int = Field(default=2, description="Wall thickness")
-    difficulty: str = Field(default="medium", description="easy/medium/hard")
+    domain: str         = Field(default="my_new_task")
+    image_size: tuple[int, int] = Field(default=(800, 500))
+    video_frames: int   = Field(default=60)   # 2 sec @ 30 fps
+    render_samples: int = Field(default=50)
+
+    # Add task-specific params here:
+    # max_objects: int = Field(default=5)
 ```
 
-**Single entry point:** `python examples/generate.py --num-samples 50`
+### 2. `src/generator.py` — Build the scene
+
+```python
+from core.base_blender_generator import BaseBlenderGenerator
+from core.schemas import TaskPair
+
+class MyTaskGenerator(BaseBlenderGenerator):
+
+    def generate_task_pair(self, task_id: str) -> TaskPair:
+        self.clear_scene()          # Always start fresh
+
+        # ── Randomise parameters ──────────────────────────────────────────
+        n_objects = random.randint(2, 5)  # placeholder: use your task-specific ranges
+
+        # ── Build the 3D scene with bpy ───────────────────────────────────
+        self._sky_world()           # (optional) add sky lighting
+        # ... add meshes, materials, camera, lights ...
+
+        # ── Render ───────────────────────────────────────────────────────
+        output_dir = os.path.join(str(self.config.output_dir),
+                                  f"{self.config.domain}_task", task_id)
+        os.makedirs(output_dir, exist_ok=True)
+
+        first_frame = os.path.join(output_dir, "first_frame.png")
+        video       = os.path.join(output_dir, "ground_truth.mp4")
+
+        self.render_first_frame(first_frame)      # renders frame 1
+        self.render_video(video, bake_physics=True)  # renders full animation
+
+        # ── Return TaskPair ───────────────────────────────────────────────
+        return TaskPair(
+            task_id=task_id,
+            domain=self.config.domain,
+            prompt="<your task question here>",
+            first_image=first_frame,
+            ground_truth_video=video if os.path.exists(video) else None,
+            metadata={"n_objects": n_objects, ...}
+        )
+```
+
+### 3. `src/__init__.py` — Export your new class
+
+```python
+from .config    import TaskConfig
+from .generator import MyTaskGenerator
+```
+
+### 4. Update `examples/generate_blender.py`
+
+Replace `CausalityGenerator` with `MyTaskGenerator`.
+
+---
+
+## BaseBlenderGenerator API Reference
+
+| Method | Description |
+|:---|:---|
+| `self.clear_scene()` | Resets Blender to empty scene |
+| `self.render_first_frame(path)` | Renders frame 1 as PNG |
+| `self.render_video(path, bake_physics=True)` | Bakes physics + renders MP4 |
+| `self.bpy` | Direct access to the `bpy` Blender API |
+| `self.config` | Your `TaskConfig` instance |
+
+---
+
+## Performance Guide
+
+| Machine | Per-frame time (50 samples) | 60-frame video | Notes |
+|:---|:---|:---|:---|
+| Mac M2 (CPU) | ~1–2 s | ~90 s | Good for dev/debug |
+| RunPod RTX 4090 | ~0.1–0.2 s | ~8–12 s | Production batch |
+
+## RunPod / GPU Notes
+
+On macOS headless runs, the core generator forces Cycles to `CPU` for stability.
+On Linux/RunPod, it tries `OPTIX` first, then `CUDA`, falling back to `CPU`.
+If you need to force a specific device/compute backend, edit `_configure_cycles_device()` in `core/base_blender_generator.py`.
+
+---
+
+## Five Core Tasks (VBVR-3D)
+
+| # | Domain | Task | Key 3D Property Tested |
+|:--|:---|:---|:---|
+| 1 | Knowledge | Material-Momentum Causality | Mass / material → collision outcome |
+| 2 | Spatiality | Egocentric Navigation | 3D spatial layout → 1st-person path |
+| 3 | Transformation | Object Permanence & Occlusion | Tracking hidden objects in 3D |
+| 4 | Perception | Mirror / Refraction Reasoning | Inverse optical physics |
+| 5 | Abstraction | 3D Topological Analogy | Topological knot reasoning |

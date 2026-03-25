@@ -11,7 +11,7 @@ if Path("requirements.txt").exists():
         requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 setup(
-    name="template-data-generator",
+    name="3d-template-data-generator",
     version="1.0.0",
     description="Template for creating reasoning task generators",
     long_description=readme,
