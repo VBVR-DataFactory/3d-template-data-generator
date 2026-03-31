@@ -116,6 +116,66 @@ class BaseBlenderGenerator(ABC):
         self.bpy.ops.render.render(write_still=True)
         return output_path
 
+    def render_video_segment(
+        self,
+        output_mp4: str,
+        frame_start: int,
+        frame_end: int,
+        *,
+        bake_physics: bool = False,
+    ) -> Optional[str]:
+        """
+        Render a subset of frames as MP4 (PNG sequence → ffmpeg).
+
+        Use this to produce first_video.mp4 or last_video.mp4 segments.
+        Call *after* baking physics (or pass bake_physics=True on the first
+        call) so that the simulation cache is available.
+
+        Args:
+            output_mp4:   Destination path for the video file.
+            frame_start:  First frame to render (inclusive, 1-based).
+            frame_end:    Last frame to render (inclusive, 1-based).
+            bake_physics: If True, bake rigid-body physics before rendering.
+
+        Returns:
+            Path to MP4, or None if --no-video or ffmpeg not found.
+        """
+        if self.config.no_video:
+            return None
+        if shutil.which("ffmpeg") is None:
+            print("⚠️  ffmpeg not found — skipping video segment.")
+            return None
+
+        if bake_physics:
+            self.bpy.ops.ptcache.bake_all()
+
+        frame_dir = tempfile.mkdtemp(prefix="vbvr3d_seg_")
+        try:
+            scene = self.bpy.context.scene
+            scene.render.image_settings.file_format = 'PNG'
+            for f in range(frame_start, frame_end + 1):
+                scene.frame_set(f)
+                scene.render.filepath = os.path.join(frame_dir, f"{f:04d}.png")
+                self.bpy.ops.render.render(write_still=True)
+
+            cmd = [
+                "ffmpeg", "-y",
+                "-framerate", str(self.config.video_fps),
+                "-start_number", str(frame_start),
+                "-i",         os.path.join(frame_dir, "%04d.png"),
+                "-c:v",       "libx264",
+                "-pix_fmt",   "yuv420p",
+                "-crf",       "20",
+                output_mp4,
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ ffmpeg error: {result.stderr[:300]}")
+                return None
+            return output_mp4
+        finally:
+            shutil.rmtree(frame_dir, ignore_errors=True)
+
     def render_video(self, output_mp4: str, *, bake_physics: bool = True) -> Optional[str]:
         """
         Render a physics-baked animation as MP4 (PNG sequence → ffmpeg).
