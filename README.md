@@ -12,9 +12,11 @@ for I2V (Image-to-Video) foundation models.
 
 ```
 data/questions/{domain}_task/{task_id}/
-├── first_frame.png        # Initial state — given to the video model as input
-├── final_frame.png        # Optional goal/after-state PNG
-├── ground_truth.mp4       # Physics-rendered collision video — the correct answer
+├── first_frame.png        # Initial state (REQUIRED) — first frame of first_video
+├── final_frame.png        # Optional goal/after-state PNG — last frame of last_video
+├── first_video.mp4        # Opening segment video (optional)
+├── last_video.mp4         # Closing segment video (optional)
+├── ground_truth.mp4       # Full video, beginning to end (optional)
 ├── prompt.txt             # Natural-language task question
 └── metadata.json          # All randomised parameters for this sample
 ```
@@ -144,7 +146,8 @@ Replace `CausalityGenerator` with `MyTaskGenerator`.
 |:---|:---|
 | `self.clear_scene()` | Resets Blender to empty scene |
 | `self.render_first_frame(path)` | Renders frame 1 as PNG |
-| `self.render_video(path, bake_physics=True)` | Bakes physics + renders MP4 |
+| `self.render_video(path, bake_physics=True)` | Bakes physics + renders full MP4 |
+| `self.render_video_segment(path, frame_start, frame_end)` | Renders a frame range as MP4 (for first/last video) |
 | `self.bpy` | Direct access to the `bpy` Blender API |
 | `self.config` | Your `TaskConfig` instance |
 

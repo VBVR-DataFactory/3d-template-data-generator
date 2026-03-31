@@ -15,6 +15,8 @@ class OutputWriter:
         {output_dir}/{domain}_task/{task_id}/
             first_frame.png
             final_frame.png        (if provided)
+            first_video.mp4        (if provided)
+            last_video.mp4         (if provided)
             ground_truth.mp4       (if provided)
             prompt.txt
             metadata.json          (if provided)
@@ -36,7 +38,21 @@ class OutputWriter:
         # ── Prompt ──────────────────────────────────────────────────────────
         (task_dir / "prompt.txt").write_text(task_pair.prompt)
 
-        # ── Video ───────────────────────────────────────────────────────────
+        # ── Videos ──────────────────────────────────────────────────────────
+        if task_pair.first_video:
+            src = Path(task_pair.first_video)
+            if src.exists():
+                dst = task_dir / f"first_video{src.suffix}"
+                if src.resolve() != dst.resolve():
+                    shutil.copy(src, dst)
+
+        if task_pair.last_video:
+            src = Path(task_pair.last_video)
+            if src.exists():
+                dst = task_dir / f"last_video{src.suffix}"
+                if src.resolve() != dst.resolve():
+                    shutil.copy(src, dst)
+
         if task_pair.ground_truth_video:
             src = Path(task_pair.ground_truth_video)
             if src.exists():
