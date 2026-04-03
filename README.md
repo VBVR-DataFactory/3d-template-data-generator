@@ -62,6 +62,10 @@ BLENDER_PY="/Applications/Blender.app/Contents/Resources/5.1/python/bin/python3.
 ├── examples/
 │   └── generate_blender.py        # Entry point — run this with Blender
 │
+├── eval/                          # 🧪 STANDALONE: Evaluation
+│   ├── verify.py                  # Automated evaluation script
+│   └── EVAL.md                    # Evaluation guide & instructions
+│
 └── data/questions/                # Generated output appears here
 ```
 
@@ -177,3 +181,16 @@ If you need to force a specific device/compute backend, edit `_configure_cycles_
 | 3 | Transformation | Object Permanence & Occlusion | Tracking hidden objects in 3D |
 | 4 | Perception | Mirror / Refraction Reasoning | Inverse optical physics |
 | 5 | Abstraction | 3D Topological Analogy | Topological knot reasoning |
+
+---
+
+## 🧪 Eval Module
+
+The `eval/` directory is standalone — it does not depend on `core/` or `src/`. It should contain everything needed to evaluate the task outputs. This could be:
+
+- **Rule-based evaluation** — automated scoring scripts (see `eval/verify.py`)
+- **Human evaluation** — rubrics, guidelines, comparison templates
+- **VLM-as-judge** — prompts and scripts for using vision-language models as evaluators
+- **Any combination** — whatever fits your task
+
+See `eval/EVAL.md` for the full evaluation guide.
