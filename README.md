@@ -34,13 +34,14 @@ data/questions/{domain}_task/{task_id}/
 ## Quick Start
 
 ```bash
-# 1) Install dependencies into Blender's embedded Python
+# 1) Install dependencies into a local packages directory
+#    (macOS SIP prevents writing directly into Blender's app bundle)
 BLENDER_PY="/Applications/Blender.app/Contents/Resources/5.1/python/bin/python3.13"
-"$BLENDER_PY" -m pip install -r requirements.txt
+"$BLENDER_PY" -m pip install -r requirements.txt --target ~/blender-packages
 
 # 2) Generate 10 samples (headless, no UI)
 /Applications/Blender.app/Contents/MacOS/Blender -b \
-    -P examples/generate_blender.py -- --num-samples 10
+    -P examples/generate.py -- --num-samples 10
 ```
 
 ---
@@ -68,7 +69,7 @@ BLENDER_PY="/Applications/Blender.app/Contents/Resources/5.1/python/bin/python3.
 │   └── __init__.py
 │
 ├── examples/
-│   └── generate_blender.py        # Entry point — run this with Blender
+│   └── generate.py        # Entry point — run this with Blender
 │
 ├── eval/                          # 🧪 STANDALONE: Evaluation
 │   ├── verify.py                  # Automated evaluation script
@@ -146,7 +147,7 @@ from .config    import TaskConfig
 from .generator import MyTaskGenerator
 ```
 
-### 4. Update `examples/generate_blender.py`
+### 4. Update `examples/generate.py`
 
 Replace `CausalityGenerator` with `MyTaskGenerator`.
 

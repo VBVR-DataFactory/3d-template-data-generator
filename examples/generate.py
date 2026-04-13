@@ -31,6 +31,10 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.append(root_dir)
 
+_extra_packages = os.path.expanduser("~/blender-packages")
+if os.path.isdir(_extra_packages) and _extra_packages not in sys.path:
+    sys.path.insert(0, _extra_packages)
+
 import bpy
 from src.config    import TaskConfig
 from src.generator import CausalityGenerator

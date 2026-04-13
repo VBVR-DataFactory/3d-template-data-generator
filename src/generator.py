@@ -212,11 +212,25 @@ class CausalityGenerator(BaseBlenderGenerator):
         os.makedirs(output_dir, exist_ok=True)
 
         first_frame_path = os.path.join(output_dir, "first_frame.png")
+        final_frame_path = os.path.join(output_dir, "final_frame.png")
+        first_video_path = os.path.join(output_dir, "first_video.mp4")
+        last_video_path  = os.path.join(output_dir, "last_video.mp4")
         video_path       = os.path.join(output_dir, "ground_truth.mp4")
 
         # ── Render ─────────────────────────────────────────────────────────
         self.render_first_frame(first_frame_path)
-        self.render_video(video_path, bake_physics=True)
+        total_frames = self.config.video_frames
+        split = total_frames // 3
+
+        self.render_video_segment(first_video_path, 1, split, bake_physics=True)
+        self.render_video_segment(last_video_path, total_frames - split + 1, total_frames)
+        self.render_video(video_path, bake_physics=False)
+
+        # Final frame — render the last frame as a still
+        self.bpy.context.scene.frame_set(total_frames)
+        self.bpy.context.scene.render.image_settings.file_format = 'PNG'
+        self.bpy.context.scene.render.filepath = final_frame_path
+        self.bpy.ops.render.render(write_still=True)
 
         # ── Prompt ─────────────────────────────────────────────────────────
         ball_type = "heavy iron" if is_heavy else "lightweight plastic"
@@ -232,6 +246,9 @@ class CausalityGenerator(BaseBlenderGenerator):
             domain=self.config.domain,
             prompt=prompt,
             first_image=first_frame_path,
+            final_image=final_frame_path,
+            first_video=first_video_path if os.path.exists(first_video_path) else None,
+            last_video=last_video_path if os.path.exists(last_video_path) else None,
             ground_truth_video=video_path if os.path.exists(video_path) else None,
             metadata={
                 "is_heavy_ball":   is_heavy,
