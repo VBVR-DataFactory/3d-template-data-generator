@@ -236,7 +236,7 @@ class BaseBlenderGenerator(ABC):
             if isinstance(v, list):
                 return tuple(sorted(serialize_value(item) for item in v))
             if isinstance(v, dict):
-                return tuple((k, serialize_value(v)) for k, v in sorted(v.items()))
+                return tuple((dk, serialize_value(dv)) for dk, dv in sorted(v.items()))
             return str(v)
 
         skip_keys = {'temp_path', 'temp_dir', 'temp_file', 'video_temp_path',

@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 
+# Template strings — use .format(tower_floors=N) to fill in placeholders.
 PROMPTS = {
     "iron": [
         (
@@ -39,16 +40,12 @@ def get_prompt(
     Returns:
         A natural-language prompt string.
     """
-    ball_desc = "heavy iron" if ball_type == "iron" else "lightweight plastic"
-
-    return (
-        f"There is a {ball_desc} ball at the top of a slope. "
-        f"The tower ahead has {tower_floors} wooden blocks. "
-        "The ball rolls down and hits the tower. "
-        "Generate the collision result."
-    )
+    key = ball_type if ball_type in PROMPTS else "iron"
+    template = PROMPTS[key][0]
+    return template.format(tower_floors=tower_floors)
 
 
-def get_all_prompts(ball_type: str = "iron") -> List[str]:
-    """Return all static fallback prompts for a ball type."""
-    return PROMPTS.get(ball_type, PROMPTS["iron"])
+def get_all_prompts(ball_type: str = "iron", tower_floors: int = 5) -> List[str]:
+    """Return all prompts for a ball type, with placeholders filled."""
+    templates = PROMPTS.get(ball_type, PROMPTS["iron"])
+    return [t.format(tower_floors=tower_floors) for t in templates]
