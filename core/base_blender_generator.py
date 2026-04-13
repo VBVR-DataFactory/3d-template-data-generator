@@ -17,7 +17,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 from .schemas import TaskPair
-from .output_writer import OutputWriter
 
 
 # ── Configuration ──────────────────────────────────────────────────────────────
@@ -26,6 +25,7 @@ class GenerationConfig(BaseModel):
     """All generation hyperparameters. Subclass in src/config.py."""
     num_samples:    int
     domain:         str
+    difficulty:     Optional[str] = None
     output_dir:     Path = Path("data/questions")
     image_size:     tuple[int, int] = (800, 500)
     video_fps:      int  = 30
@@ -216,6 +216,60 @@ class BaseBlenderGenerator(ABC):
         finally:
             shutil.rmtree(frame_dir, ignore_errors=True)
 
+    # ── Metadata & deduplication ────────────────────────────────────────────────
+
+    def _task_signature(self, task_data: dict) -> tuple:
+        """
+        Generic _task_signature method for generators without custom implementation.
+        Creates a signature from task_data by quantizing floats and serializing values.
+        """
+        def q(v: float, step: int = 5) -> int:
+            return int(round(v / step) * step)
+
+        def serialize_value(v):
+            if isinstance(v, (int, str, bool, type(None))):
+                return v
+            if isinstance(v, float):
+                return q(v, 5)
+            if isinstance(v, tuple):
+                return tuple(serialize_value(item) for item in v)
+            if isinstance(v, list):
+                return tuple(sorted(serialize_value(item) for item in v))
+            if isinstance(v, dict):
+                return tuple((dk, serialize_value(dv)) for dk, dv in sorted(v.items()))
+            return str(v)
+
+        skip_keys = {'temp_path', 'temp_dir', 'temp_file', 'video_temp_path',
+                     'image_temp_path', '_cache', '_internal', '_temp', 'seed', 'random_seed'}
+
+        items = []
+        for key, value in sorted(task_data.items()):
+            if any(skip in key.lower() for skip in skip_keys):
+                continue
+            items.append((key, serialize_value(value)))
+
+        return tuple(items)
+
+    def _build_metadata(self, task_id: str, task_data: dict) -> dict:
+        """
+        Build standardized metadata for a task.
+
+        Args:
+            task_id: Task ID
+            task_data: Parameters dict from _generate_task_data()
+
+        Returns:
+            Standardized metadata dict
+        """
+        from .metadata_builder import build_metadata
+
+        return build_metadata(
+            task_id=task_id,
+            generator_name=self.config.domain,
+            parameters=task_data,
+            seed=self.config.random_seed,
+        )
+
     # ── Dataset loop ───────────────────────────────────────────────────────────
 
     @abstractmethod
@@ -246,7 +300,7 @@ class BaseBlenderGenerator(ABC):
     def generate_dataset(self) -> List[TaskPair]:
         """
         Run the full generation loop.
-        Called by examples/generate_blender.py.
+        Called by examples/generate.py.
 
         Features:
           - Skip already-generated samples (checkpoint/resume)
@@ -254,8 +308,11 @@ class BaseBlenderGenerator(ABC):
           - Dry-run mode (print params, no render)
           - --no-video fast preview mode
           - Total elapsed time summary
+
+        Returns:
+          List of TaskPair objects. The caller is responsible for writing
+          them to disk via OutputWriter.
         """
-        writer = OutputWriter(self.config.output_dir)
         pairs  = []
         skipped = 0
         t_total_start = time.time()
@@ -291,7 +348,6 @@ class BaseBlenderGenerator(ABC):
             t_start = time.time()
 
             pair = self.generate_task_pair(task_id)
-            writer.write_task_pair(pair)
             pairs.append(pair)
 
             elapsed = time.time() - t_start

@@ -36,6 +36,8 @@ if os.path.isdir(_extra_packages) and _extra_packages not in sys.path:
     sys.path.insert(0, _extra_packages)
 
 import bpy
+from pathlib import Path
+from core import OutputWriter
 from src.config    import TaskConfig
 from src.generator import CausalityGenerator
 
@@ -76,7 +78,14 @@ def main():
         render_samples = args.samples or 50,
     )
 
-    CausalityGenerator(config).generate_dataset()
+    # Generate tasks
+    generator = CausalityGenerator(config)
+    tasks = generator.generate_dataset()
+
+    # Write to disk
+    writer = OutputWriter(Path(args.output or os.path.join(root_dir, "data", "questions")))
+    writer.write_dataset(tasks)
+
     bpy.ops.wm.quit_blender()
 
 

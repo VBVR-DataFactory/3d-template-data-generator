@@ -15,6 +15,7 @@ import mathutils
 
 from core.base_blender_generator import BaseBlenderGenerator
 from core.schemas import TaskPair
+from src.prompts import get_prompt
 
 
 class CausalityGenerator(BaseBlenderGenerator):
@@ -219,13 +220,21 @@ class CausalityGenerator(BaseBlenderGenerator):
         self.render_video(video_path, bake_physics=True)
 
         # ── Prompt ─────────────────────────────────────────────────────────
-        ball_type = "heavy iron" if is_heavy else "lightweight plastic"
-        prompt = (
-            f"There is a {ball_type} ball at the top of a slope. "
-            f"The tower ahead has {n_floors} wooden blocks. "
-            "The ball rolls down and hits the tower. "
-            "Generate the collision result."
+        ball_type = "iron" if is_heavy else "plastic"
+        prompt = get_prompt(
+            ball_type=ball_type,
+            tower_floors=n_floors,
         )
+
+        # ── Metadata ──────────────────────────────────────────────────────
+        task_data = {
+            "is_heavy_ball":   is_heavy,
+            "ball_type":       ball_type,
+            "slope_angle_deg": round(math.degrees(slope_ang), 1),
+            "tower_floors":    n_floors,
+            "ball_radius":     round(ball_r, 3),
+            "ball_mass_kg":    mass_val,
+        }
 
         return TaskPair(
             task_id=task_id,
@@ -233,12 +242,5 @@ class CausalityGenerator(BaseBlenderGenerator):
             prompt=prompt,
             first_image=first_frame_path,
             ground_truth_video=video_path if os.path.exists(video_path) else None,
-            metadata={
-                "is_heavy_ball":   is_heavy,
-                "ball_type":       "iron" if is_heavy else "plastic",
-                "slope_angle_deg": round(math.degrees(slope_ang), 1),
-                "tower_floors":    n_floors,
-                "ball_radius":     round(ball_r, 3),
-                "ball_mass_kg":    mass_val,
-            }
+            metadata=self._build_metadata(task_id, task_data),
         )
